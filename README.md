@@ -26,8 +26,8 @@ docker-compose.yml      Web + API + base de datos
 
 ## Levantar todo con Docker (recomendado)
 
-1. Copia `.env.example` a `.env` y cambia al menos `ADMIN_PASSWORD` y
-   `JWT_SECRET`.
+1. Copia `.env.example` a `.env` y cambia `ADMIN_PASSWORD`, `JWT_SECRET` y
+   `POSTGRES_PASSWORD`.
 2. Construye y levanta los servicios:
 
    ```bash
