@@ -60,8 +60,8 @@ web. Pasos:
 
 1. Entra en <https://dashboard.render.com/blueprints> y crea un Blueprint con el
    repositorio de GitHub.
-2. Cuando pida `ADMIN_PASSWORD`, escribe la contraseña del panel (por ejemplo,
-   `copoytobi`). `JWT_SECRET` se genera automáticamente.
+2. Cuando pida `ADMIN_PASSWORD`, escribe una contraseña segura para el panel.
+   `JWT_SECRET` se genera automáticamente.
 3. Espera a que terminen los tres recursos y abre la URL de
    `moodboard-web-valxci.onrender.com`.
 
@@ -161,21 +161,34 @@ paso, y la página vuelve al inicio al cambiar de paso.
 
 | Variable              | Descripción                                      | Por defecto             |
 | --------------------- | ------------------------------------------------ | ----------------------- |
-| `ADMIN_PASSWORD`      | Contraseña del panel `/admin`                    | `moodboard-admin`       |
-| `JWT_SECRET`          | Secreto para firmar la sesión del panel          | `cambia-este-secreto`   |
+| `ADMIN_PASSWORD`      | Contraseña del panel `/admin`                    | definida en `.env`      |
+| `JWT_SECRET`          | Secreto para firmar la sesión del panel          | definido en `.env`      |
 | `NEXT_PUBLIC_API_URL` | URL externa del API (vacío = mismo origen)       | vacío                   |
 | `API_INTERNAL_URL`    | URL interna del API para los rewrites de Next    | `http://localhost:4000` |
 | `WEB_ORIGIN`          | Origen permitido por CORS                        | `http://localhost:3000` |
 | `POSTGRES_DB`         | Nombre de la base de datos                       | `moodboard`             |
 | `POSTGRES_USER`       | Usuario de Postgres                              | `moodboard`             |
-| `POSTGRES_PASSWORD`   | Contraseña de Postgres                           | `moodboard`             |
+| `POSTGRES_PASSWORD`   | Contraseña de Postgres                           | definida en `.env`      |
 
 `NEXT_PUBLIC_API_URL` y `API_INTERNAL_URL` se aplican al construir la imagen web,
 así que después de cambiarlas hay que reconstruirla
 (`docker compose up -d --build web`).
 
 El API también acepta `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`,
-`DB_SYNC` y `UPLOADS_DIR` (revisa `api/.env.example`).
+`DB_SYNC` y `UPLOADS_DIR`. En Docker y en Render se configuran como variables de
+entorno; no hace falta un archivo `.env` dentro de `api/`.
+
+## Seguridad: qué no se sube al repositorio
+
+- `.env`, `api/.env` y `.backups/` están en `.gitignore` porque contienen
+  contraseñas, secretos o datos de usuarios. No los añadas con `git add -f`.
+- `.env.example` solo debe contener marcadores de posición, nunca credenciales
+  reales.
+- En Render, `ADMIN_PASSWORD` se pide al crear el Blueprint (`sync: false`) y
+  `JWT_SECRET` se genera automáticamente. No los escribas en `render.yaml`.
+- Si una contraseña o un secreto llegó a un commit público, considéralo
+  filtrado: cámbialo y vuelve a desplegar. Borrarlo en un commit nuevo no lo
+  elimina del historial de Git.
 
 ## Notas
 
