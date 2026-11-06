@@ -48,3 +48,6 @@ next-env.d.ts
 
 # backups de base de datos (contienen datos de usuarios)
 /.backups
+
+# secretos locales de despliegue (API keys, connection strings)
+/.secrets

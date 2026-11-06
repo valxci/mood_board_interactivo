@@ -6,4 +6,6 @@ api
 .git
 .env
 .env.*
+.secrets
+.backups
 *.log

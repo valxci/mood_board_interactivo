@@ -42,9 +42,6 @@ export class AdminReferencesController {
           new MaxFileSizeValidator({ maxSize: MAX_IMAGE_SIZE }),
           new FileTypeValidator({
             fileType: /^image\/(png|jpeg|webp)$/,
-            // Con diskStorage el archivo llega sin buffer; el mimetype ya se
-            // valida también en el fileFilter de Multer.
-            skipMagicNumbersValidation: true,
           }),
         ],
         exceptionFactory: () =>

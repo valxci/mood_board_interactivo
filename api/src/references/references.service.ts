@@ -4,18 +4,21 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { unlink } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { basename } from "node:path";
 import { Repository } from "typeorm";
-import { toUploadUrl, uploadsDir, uploadsPublicPath } from "../common/uploads";
+import { toUploadUrl, uploadsPublicPath } from "../common/uploads";
+import { StoredFilesService } from "../uploads/stored-files.service";
 import { CreateReferenceDto } from "./dto/create-reference.dto";
 import { ReferenceEntity } from "./reference.entity";
+import { extensionForMimeType } from "./upload.config";
 
 @Injectable()
 export class ReferencesService {
   constructor(
     @InjectRepository(ReferenceEntity)
     private readonly references: Repository<ReferenceEntity>,
+    private readonly files: StoredFilesService,
   ) {}
 
   findAll(): Promise<ReferenceEntity[]> {
@@ -32,10 +35,13 @@ export class ReferencesService {
       throw new BadRequestException("Adjunta una imagen para subir.");
     }
 
+    const filename = `${randomUUID()}${extensionForMimeType(file.mimetype)}`;
+    await this.files.save(filename, file.mimetype, file.buffer);
+
     const highest = await this.references.maximum("sortOrder");
     const reference = this.references.create({
       kind: dto.kind,
-      src: toUploadUrl(file.filename),
+      src: toUploadUrl(filename),
       alt: dto.alt.trim(),
       category:
         dto.kind === "style" && dto.category?.trim()
@@ -44,7 +50,14 @@ export class ReferencesService {
       sortOrder: (highest ?? 0) + 1,
     });
 
-    return this.references.save(reference);
+    try {
+      return await this.references.save(reference);
+    } catch (error) {
+      await this.files.remove(filename).catch(() => {
+        // Si falla la limpieza, la imagen queda huerfana pero no rompe la API.
+      });
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<{ ok: true }> {
@@ -56,8 +69,8 @@ export class ReferencesService {
     await this.references.remove(reference);
 
     if (reference.src.startsWith(`${uploadsPublicPath}/`)) {
-      await unlink(join(uploadsDir, basename(reference.src))).catch(() => {
-        // El archivo ya no existe: la referencia igual se elimina.
+      await this.files.remove(basename(reference.src)).catch(() => {
+        // La imagen ya no existe: la referencia igual se elimina.
       });
     }
 

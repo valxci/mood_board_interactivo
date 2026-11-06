@@ -3,4 +3,6 @@ dist
 uploads
 .env
 .env.*
+.secrets
+.backups
 *.log

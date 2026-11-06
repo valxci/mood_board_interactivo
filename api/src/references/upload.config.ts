@@ -1,9 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { diskStorage } from "multer";
-import { extname } from "node:path";
-import { uploadsDir } from "../common/uploads";
+import { memoryStorage } from "multer";
 
 export const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 
@@ -13,19 +9,12 @@ const allowedMimeTypes = new Map<string, string>([
   ["image/webp", ".webp"],
 ]);
 
-mkdirSync(uploadsDir, { recursive: true });
+export function extensionForMimeType(mimetype: string): string {
+  return allowedMimeTypes.get(mimetype) ?? ".png";
+}
 
 export const referenceUploadOptions = {
-  storage: diskStorage({
-    destination: uploadsDir,
-    filename: (_request, file, callback) => {
-      const extension =
-        allowedMimeTypes.get(file.mimetype) ||
-        extname(file.originalname).toLowerCase() ||
-        ".png";
-      callback(null, `${randomUUID()}${extension}`);
-    },
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: MAX_IMAGE_SIZE },
   fileFilter: (
     _request: unknown,
@@ -34,7 +23,7 @@ export const referenceUploadOptions = {
   ) => {
     if (!allowedMimeTypes.has(file.mimetype)) {
       callback(
-        new BadRequestException("Solo se permiten imágenes PNG, JPG o WebP."),
+        new BadRequestException("Solo se permiten imagenes PNG, JPG o WebP."),
         false,
       );
       return;

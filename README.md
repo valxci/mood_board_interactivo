@@ -39,8 +39,9 @@ docker-compose.yml      Web + API + base de datos
    - Panel: <http://localhost:3000/admin>
    - API: <http://localhost:4000/api>
 
-Los datos de Postgres viven en el volumen `db_data` y las imágenes subidas en el
-volumen `uploads`.
+Los datos de Postgres viven en el volumen `db_data`. Las imágenes que subes desde
+el panel también se guardan en PostgreSQL, así que no hace falta un volumen de
+archivos.
 
 ```bash
 docker compose down      # detener (conserva los datos)
@@ -50,24 +51,27 @@ docker compose down -v   # detener y borrar datos e imágenes
 ## Despliegue
 
 La app necesita tres cosas: la web de Next, el API de NestJS y Postgres. Las
-imágenes que se suben desde el panel se guardan en un disco persistente del API,
-así que **no basta con publicar el frontend en Vercel**.
+imágenes que se suben desde el panel se guardan dentro de PostgreSQL, así que el
+API no necesita disco persistente. Eso permite usar planes gratuitos.
 
-### Render (Blueprint)
+### Render free + Neon free (recomendado para gratis)
 
-El archivo `render.yaml` crea la base de datos, el API con disco persistente y la
-web. Pasos:
+Esta combinación no requiere tarjeta ni servidor propio. Render duerme los
+servicios free tras unos minutos sin visitas; el primer acceso puede tardar
+entre 30 y 60 segundos.
 
-1. Entra en <https://dashboard.render.com/blueprints> y crea un Blueprint con el
-   repositorio de GitHub.
-2. Cuando pida `ADMIN_PASSWORD`, escribe una contraseña segura para el panel.
-   `JWT_SECRET` se genera automáticamente.
-3. Espera a que terminen los tres recursos y abre la URL de
-   `moodboard-web-valxci.onrender.com`.
+1. Crea un proyecto gratuito en <https://neon.tech> y copia su connection string
+   (`postgresql://...`). Neon free es permanente e incluye 1 GB.
+2. En Render, crea una cuenta nueva con tu email (no la conectes a GitHub) y
+   genera una API key en **Account Settings > API Keys**.
+3. Crea un Blueprint con el repositorio público y `render.yaml`, o pide que se
+   creen los dos servicios por API.
+4. Cuando Render pida `ADMIN_PASSWORD` y `DATABASE_URL`, escribe una contraseña
+   nueva y la connection string de Neon.
+5. Abre la URL de `moodboard-web-valxci.onrender.com`.
 
-El API usa un plan de pago porque los discos persistentes no están disponibles
-en el plan free. La web puede quedarse en free (se duerme tras unos minutos de
-inactividad); para evitarlo, cambia su `plan` a `0.5c-512mb`.
+`render.yaml` ya usa `plan: free` para el API y para la web. El API guarda las
+imágenes en PostgreSQL; no hay disco que pagar.
 
 Si Render añade un sufijo a los nombres porque ya están ocupados, actualiza
 `API_INTERNAL_URL` (servicio web) y `WEB_ORIGIN` (servicio API) con las URLs
@@ -98,8 +102,8 @@ En un servidor con Docker y un dominio apuntando a su IP:
    Postgres a Internet.
 
 En Docker, `API_INTERNAL_URL` se hornea como `http://api:4000` y el navegador
-habla solo con el dominio de la web (Next hace de proxy). Las subidas quedan en
-el volumen `uploads` y la base de datos en `db_data`.
+habla solo con el dominio de la web (Next hace de proxy). Las imágenes y la base
+de datos quedan dentro del volumen `db_data`.
 
 ## Desarrollo local
 
@@ -166,6 +170,8 @@ paso, y la página vuelve al inicio al cambiar de paso.
 | `NEXT_PUBLIC_API_URL` | URL externa del API (vacío = mismo origen)       | vacío                   |
 | `API_INTERNAL_URL`    | URL interna del API para los rewrites de Next    | `http://localhost:4000` |
 | `WEB_ORIGIN`          | Origen permitido por CORS                        | `http://localhost:3000` |
+| `DATABASE_URL`        | Connection string de PostgreSQL (Neon, etc.)     | vacío                   |
+| `DB_SSL`              | Activa SSL para la base de datos remota          | `false`                 |
 | `POSTGRES_DB`         | Nombre de la base de datos                       | `moodboard`             |
 | `POSTGRES_USER`       | Usuario de Postgres                              | `moodboard`             |
 | `POSTGRES_PASSWORD`   | Contraseña de Postgres                           | definida en `.env`      |
@@ -174,9 +180,10 @@ paso, y la página vuelve al inicio al cambiar de paso.
 así que después de cambiarlas hay que reconstruirla
 (`docker compose up -d --build web`).
 
-El API también acepta `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`,
-`DB_SYNC` y `UPLOADS_DIR`. En Docker y en Render se configuran como variables de
-entorno; no hace falta un archivo `.env` dentro de `api/`.
+El API usa `DATABASE_URL` si está definida; si no, acepta `DB_HOST`, `DB_PORT`,
+`DB_USER`, `DB_PASSWORD` y `DB_NAME`. `DB_SYNC` controla si TypeORM crea las
+tablas automáticamente. En Render se configura `DB_SSL=true` para Neon. No hace
+falta un archivo `.env` dentro de `api/`.
 
 ## Seguridad: qué no se sube al repositorio
 
@@ -184,8 +191,9 @@ entorno; no hace falta un archivo `.env` dentro de `api/`.
   contraseñas, secretos o datos de usuarios. No los añadas con `git add -f`.
 - `.env.example` solo debe contener marcadores de posición, nunca credenciales
   reales.
-- En Render, `ADMIN_PASSWORD` se pide al crear el Blueprint (`sync: false`) y
-  `JWT_SECRET` se genera automáticamente. No los escribas en `render.yaml`.
+- En Render, `ADMIN_PASSWORD` y `DATABASE_URL` se piden al crear el Blueprint
+  (`sync: false`) y `JWT_SECRET` se genera automáticamente. No los escribas en
+  `render.yaml`.
 - Si una contraseña o un secreto llegó a un commit público, considéralo
   filtrado: cámbialo y vuelve a desplegar. Borrarlo en un commit nuevo no lo
   elimina del historial de Git.
@@ -195,8 +203,9 @@ entorno; no hace falta un archivo `.env` dentro de `api/`.
 - TypeORM usa `synchronize: true` para simplificar el desarrollo. Si el proyecto
   crece, conviene pasar a migraciones.
 - Las imágenes semilla viven en `public/references` y
-  `public/mascot-references`; las subidas se sirven en `/uploads`. Next hace de
-  proxy hacia el API, así que el navegador solo habla con el origen de la web
-  (sin problemas de CORS).
+  `public/mascot-references`; las subidas desde el panel se guardan en la tabla
+  `stored_files` de PostgreSQL y se sirven en `/uploads`. Next hace de proxy
+  hacia el API, así que el navegador solo habla con el origen de la web (sin
+  problemas de CORS).
 - Antes de publicar, cambia las contraseñas, usa HTTPS y no expongas el puerto de
   Postgres.
