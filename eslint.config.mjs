@@ -12,7 +12,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Backend NestJS (tiene su propio tsconfig y build)
+    "api/**",
   ]),
+  {
+    rules: {
+      // La app carga datos del API al montar cada panel. Es un efecto de
+      // sincronización con un sistema externo, así que permitimos el setState.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

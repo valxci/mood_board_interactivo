@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:api": "npm --prefix api run start:dev",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
