@@ -1,0 +1,87 @@
+# Despliegue completo en Render: web (Next.js) + API (NestJS) + Postgres + disco
+# para las imágenes subidas.
+#
+# Cómo usarlo:
+#   1. Sube este archivo a GitHub.
+#   2. En Render: Dashboard > New > Blueprint > selecciona el repositorio.
+#   3. Cuando Render pida ADMIN_PASSWORD, escribe la contraseña del panel.
+#   4. Espera a que terminen los tres recursos y abre la URL de moodboard-web-*.
+#
+# Notas:
+# - El API usa un plan de pago porque los discos persistentes no existen en el
+#   plan free. La web puede quedarse en free; si no quieres esperas por cold
+#   starts, cambia `plan: free` por `plan: 0.5c-512mb`.
+# - La base de datos free sirve para empezar; Render puede suspenderla después
+#   del periodo de prueba. Para producción, usa un plan de pago.
+# - Los nombres de los servicios deben ser únicos en Render. Si Render les añade
+#   un sufijo, actualiza API_INTERNAL_URL y WEB_ORIGIN con las URLs reales.
+
+databases:
+  - name: moodboard-db
+    databaseName: moodboard
+    user: moodboard
+    plan: free
+    region: oregon
+
+services:
+  - type: web
+    name: moodboard-api-valxci
+    runtime: docker
+    region: oregon
+    plan: 0.5c-512mb
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /api/content
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: moodboard-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: moodboard-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: moodboard-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: moodboard-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: moodboard-db
+          property: database
+      - key: DB_SYNC
+        value: "true"
+      - key: UPLOADS_DIR
+        value: /app/uploads
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        value: https://moodboard-web-valxci.onrender.com
+      - key: PORT
+        value: "10000"
+    disk:
+      name: moodboard-uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+
+  - type: web
+    name: moodboard-web-valxci
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      # En Render, las variables se pasan también como build args al Dockerfile.
+      # El Dockerfile las usa para hornear los rewrites de Next.
+      - key: API_INTERNAL_URL
+        value: https://moodboard-api-valxci.onrender.com
+      - key: PORT
+        value: "10000"

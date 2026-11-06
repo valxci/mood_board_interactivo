@@ -47,6 +47,60 @@ docker compose down      # detener (conserva los datos)
 docker compose down -v   # detener y borrar datos e imágenes
 ```
 
+## Despliegue
+
+La app necesita tres cosas: la web de Next, el API de NestJS y Postgres. Las
+imágenes que se suben desde el panel se guardan en un disco persistente del API,
+así que **no basta con publicar el frontend en Vercel**.
+
+### Render (Blueprint)
+
+El archivo `render.yaml` crea la base de datos, el API con disco persistente y la
+web. Pasos:
+
+1. Entra en <https://dashboard.render.com/blueprints> y crea un Blueprint con el
+   repositorio de GitHub.
+2. Cuando pida `ADMIN_PASSWORD`, escribe la contraseña del panel (por ejemplo,
+   `copoytobi`). `JWT_SECRET` se genera automáticamente.
+3. Espera a que terminen los tres recursos y abre la URL de
+   `moodboard-web-valxci.onrender.com`.
+
+El API usa un plan de pago porque los discos persistentes no están disponibles
+en el plan free. La web puede quedarse en free (se duerme tras unos minutos de
+inactividad); para evitarlo, cambia su `plan` a `0.5c-512mb`.
+
+Si Render añade un sufijo a los nombres porque ya están ocupados, actualiza
+`API_INTERNAL_URL` (servicio web) y `WEB_ORIGIN` (servicio API) con las URLs
+reales y vuelve a desplegar la web.
+
+### VPS con Docker
+
+En un servidor con Docker y un dominio apuntando a su IP:
+
+1. Copia `.env.example` a `.env` y define `ADMIN_PASSWORD`, un `JWT_SECRET`
+   aleatorio y `WEB_ORIGIN=https://tu-dominio.com`.
+2. Levanta la app:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. Instala Caddy (o Nginx) como reverse proxy con HTTPS hacia
+   `http://localhost:3000`. Ejemplo de `Caddyfile`:
+
+   ```caddyfile
+   moodboard.tu-dominio.com {
+     reverse_proxy localhost:3000
+   }
+   ```
+
+4. Abre solo los puertos 80 y 443 en el firewall. No expongas el puerto 5432 de
+   Postgres a Internet.
+
+En Docker, `API_INTERNAL_URL` se hornea como `http://api:4000` y el navegador
+habla solo con el dominio de la web (Next hace de proxy). Las subidas quedan en
+el volumen `uploads` y la base de datos en `db_data`.
+
 ## Desarrollo local
 
 Necesitas Postgres. Puedes levantarlo solo con Docker:
