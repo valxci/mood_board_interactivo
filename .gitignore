@@ -45,3 +45,6 @@ next-env.d.ts
 /api/node_modules
 /api/dist
 /api/uploads
+
+# backups de base de datos (contienen datos de usuarios)
+/.backups
