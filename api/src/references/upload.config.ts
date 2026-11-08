@@ -1,7 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { memoryStorage } from "multer";
 
-export const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+export const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
 
 const allowedMimeTypes = new Map<string, string>([
   ["image/png", ".png"],

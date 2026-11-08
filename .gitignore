@@ -51,3 +51,6 @@ next-env.d.ts
 
 # secretos locales de despliegue (API keys, connection strings)
 /.secrets
+
+.vercel
+.env*

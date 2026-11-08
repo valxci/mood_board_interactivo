@@ -1,0 +1,8 @@
+api
+.backups
+.secrets
+.env
+.env.*
+**/node_modules
+**/.next
+**/.vercel

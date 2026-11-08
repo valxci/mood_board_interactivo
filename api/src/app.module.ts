@@ -14,7 +14,9 @@ import { SubmissionsModule } from "./submissions/submissions.module";
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const databaseUrl = config.get<string>("DATABASE_URL")?.trim();
+        const databaseUrl =
+          config.get<string>("DATABASE_URL_POOLED")?.trim() ??
+          config.get<string>("DATABASE_URL")?.trim();
         const useSsl =
           (config.get<string>("DB_SSL") ?? "false").toLowerCase() === "true";
 
@@ -34,6 +36,7 @@ import { SubmissionsModule } from "./submissions/submissions.module";
           synchronize: (config.get<string>("DB_SYNC") ?? "true") === "true",
           retryAttempts: 15,
           retryDelay: 3000,
+          extra: { max: 5 },
         };
       },
     }),

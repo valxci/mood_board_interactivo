@@ -181,7 +181,7 @@ export function ImagesPanel({ token, onUnauthorized }: ImagesPanelProps) {
               className="mt-2 block w-full cursor-pointer rounded-[18px] border border-[#E7D9D2] bg-[#FEFBF7] px-4 py-3 text-sm text-[#503E2A] file:mr-4 file:rounded-full file:border-0 file:bg-[#F9AFC9] file:px-4 file:py-2 file:text-xs file:font-bold file:text-[#503E2A]"
             />
             <span className="mt-1 block text-xs text-[#503E2A]/55">
-              PNG, JPG o WebP · máximo 8 MB
+              PNG, JPG o WebP · máximo 4 MB
             </span>
           </label>
 

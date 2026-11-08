@@ -46,7 +46,7 @@ export class AdminReferencesController {
         ],
         exceptionFactory: () =>
           new BadRequestException(
-            "La imagen debe ser PNG, JPG o WebP y pesar menos de 8 MB.",
+            "La imagen debe ser PNG, JPG o WebP y pesar menos de 4 MB.",
           ),
       }),
     )

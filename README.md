@@ -54,28 +54,38 @@ La app necesita tres cosas: la web de Next, el API de NestJS y Postgres. Las
 imágenes que se suben desde el panel se guardan dentro de PostgreSQL, así que el
 API no necesita disco persistente. Eso permite usar planes gratuitos.
 
-### Render free + Neon free (recomendado para gratis)
+### Vercel free + Prisma Postgres free (producción actual)
 
-Esta combinación no requiere tarjeta ni servidor propio. Render duerme los
-servicios free tras unos minutos sin visitas; el primer acceso puede tardar
-entre 30 y 60 segundos.
+La app está desplegada sin depender de ningún computador:
 
-1. Crea un proyecto gratuito en <https://neon.tech> y copia su connection string
-   (`postgresql://...`). Neon free es permanente e incluye 1 GB.
-2. En Render, crea una cuenta nueva con tu email (no la conectes a GitHub) y
-   genera una API key en **Account Settings > API Keys**.
-3. Crea un Blueprint con el repositorio público y `render.yaml`, o pide que se
-   creen los dos servicios por API.
-4. Cuando Render pida `ADMIN_PASSWORD` y `DATABASE_URL`, escribe una contraseña
-   nueva y la connection string de Neon.
-5. Abre la URL de `moodboard-web-valxci.onrender.com`.
+- **Experiencia:** <https://moodboard-web-valxci.vercel.app>
+- **Panel:** <https://moodboard-web-valxci.vercel.app/admin>
+- **API:** <https://moodboard-api-valxci.vercel.app>
 
-`render.yaml` ya usa `plan: free` para el API y para la web. El API guarda las
-imágenes en PostgreSQL; no hay disco que pagar.
+La web es un proyecto de Next.js en Vercel. El API es una función serverless de
+NestJS en Vercel (`api/vercel-handler.ts`) y la base de datos es un recurso
+gratuito de **Prisma Postgres** conectado desde el Marketplace de Vercel. Las
+imágenes subidas se guardan en PostgreSQL, así que no hace falta disco
+persistente ni tarjeta de crédito.
 
-Si Render añade un sufijo a los nombres porque ya están ocupados, actualiza
-`API_INTERNAL_URL` (servicio web) y `WEB_ORIGIN` (servicio API) con las URLs
-reales y vuelve a desplegar la web.
+Para replicarlo:
+
+1. Instala el CLI de Vercel y autentícate con `npx vercel login`.
+2. Despliega el API desde `api/` con `npx vercel --prod`.
+3. En el proyecto del API, instala Prisma Postgres desde el Marketplace
+   (`npx vercel install prisma/prisma-postgres --billing-plan free`) y conecta
+   el recurso al proyecto. Vercel agrega `DATABASE_URL`,
+   `DATABASE_URL_POOLED`, `POSTGRES_URL` y `PRISMA_DATABASE_URL`.
+4. Define `DB_SSL=true`, `DB_SYNC=true` la primera vez (luego `false`),
+   `ADMIN_PASSWORD`, `JWT_SECRET` y `WEB_ORIGIN`.
+5. Despliega la web desde la raíz con `API_INTERNAL_URL` apuntando a la URL del
+   API y `NEXT_PUBLIC_API_URL` vacío. Next hace de proxy hacia el API.
+6. La primera petición a `/api/content` crea las tablas y carga las referencias
+   y paletas semilla. Después se pueden importar los envíos existentes.
+
+Los proyectos de Vercel no se duermen como los de Render; el primer acceso
+después de un despliegue puede tardar unos segundos por el arranque en frío del
+API.
 
 ### VPS con Docker
 
@@ -130,7 +140,7 @@ Entra en `/admin` con la contraseña definida en `ADMIN_PASSWORD`.
 - **Marcas:** cada envío aparece como una carpeta con las referencias, paletas,
   mascota, respuestas y un análisis automático. Puedes añadir notas internas,
   descargar el JSON o eliminar la solicitud.
-- **Imágenes:** sube PNG, JPG o WebP (máximo 8 MB), indica si es referencia de
+- **Imágenes:** sube PNG, JPG o WebP (máximo 4 MB), indica si es referencia de
   estilo o de mascota y, opcionalmente, una categoría para el análisis. También
   puedes eliminar imágenes existentes.
 - **Paletas:** crea familias y paletas con hasta 10 colores, o elimina las que ya
@@ -170,7 +180,8 @@ paso, y la página vuelve al inicio al cambiar de paso.
 | `NEXT_PUBLIC_API_URL` | URL externa del API (vacío = mismo origen)       | vacío                   |
 | `API_INTERNAL_URL`    | URL interna del API para los rewrites de Next    | `http://localhost:4000` |
 | `WEB_ORIGIN`          | Origen permitido por CORS                        | `http://localhost:3000` |
-| `DATABASE_URL`        | Connection string de PostgreSQL (Neon, etc.)     | vacío                   |
+| `DATABASE_URL`        | Connection string de PostgreSQL (Prisma, Neon…)  | vacío                   |
+| `DATABASE_URL_POOLED` | Connection string agrupada (tiene prioridad)     | vacío                   |
 | `DB_SSL`              | Activa SSL para la base de datos remota          | `false`                 |
 | `POSTGRES_DB`         | Nombre de la base de datos                       | `moodboard`             |
 | `POSTGRES_USER`       | Usuario de Postgres                              | `moodboard`             |
@@ -180,10 +191,11 @@ paso, y la página vuelve al inicio al cambiar de paso.
 así que después de cambiarlas hay que reconstruirla
 (`docker compose up -d --build web`).
 
-El API usa `DATABASE_URL` si está definida; si no, acepta `DB_HOST`, `DB_PORT`,
-`DB_USER`, `DB_PASSWORD` y `DB_NAME`. `DB_SYNC` controla si TypeORM crea las
-tablas automáticamente. En Render se configura `DB_SSL=true` para Neon. No hace
-falta un archivo `.env` dentro de `api/`.
+El API usa `DATABASE_URL_POOLED` si está definida, luego `DATABASE_URL`; si no,
+acepta `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` y `DB_NAME`. `DB_SYNC`
+controla si TypeORM crea las tablas automáticamente. En Vercel se configura
+`DB_SSL=true` para Prisma Postgres. No hace falta un archivo `.env` dentro de
+`api/`.
 
 ## Seguridad: qué no se sube al repositorio
 
@@ -191,9 +203,9 @@ falta un archivo `.env` dentro de `api/`.
   contraseñas, secretos o datos de usuarios. No los añadas con `git add -f`.
 - `.env.example` solo debe contener marcadores de posición, nunca credenciales
   reales.
-- En Render, `ADMIN_PASSWORD` y `DATABASE_URL` se piden al crear el Blueprint
-  (`sync: false`) y `JWT_SECRET` se genera automáticamente. No los escribas en
-  `render.yaml`.
+- En Vercel, `ADMIN_PASSWORD` y `JWT_SECRET` se guardan como variables secretas
+  del proyecto del API. Prisma Postgres agrega sus propias credenciales. No
+  escribas secretos en `vercel.json` ni en el repositorio.
 - Si una contraseña o un secreto llegó a un commit público, considéralo
   filtrado: cámbialo y vuelve a desplegar. Borrarlo en un commit nuevo no lo
   elimina del historial de Git.
